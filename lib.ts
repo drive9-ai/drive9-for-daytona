@@ -1,4 +1,7 @@
 import { Daytona, type Sandbox } from '@daytonaio/sdk'
+import { existsSync, readFileSync } from 'node:fs'
+import { execSync } from 'node:child_process'
+import { join } from 'node:path'
 
 export const drive9Server = process.env.DRIVE9_SERVER || 'https://api.drive9.ai'
 export const drive9Remote = process.env.DRIVE9_REMOTE || ':/daytona-demo'
@@ -71,18 +74,26 @@ export async function run(
 
 export async function installDrive9(sandbox: Sandbox, name: string) {
   const url = `${releaseBaseUrl}/drive9-linux-amd64?v=${releaseVersion}`
-  await run(
-    sandbox,
-    name,
-    'install drive9',
-    // Retry up to 3 times with backoff — sandbox network can be flaky on first boot.
-    `for attempt in 1 2 3; do ` +
-      `curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 '${url}' -o /usr/local/bin/drive9 && break; ` +
-      `echo "Attempt $attempt failed, retrying..."; sleep 2; ` +
-      `done && ` +
-      `chmod +x /usr/local/bin/drive9 && ` +
-      `drive9 --version`,
-  )
+  const cacheDir = join(process.env.HOME || '/tmp', '.cache', 'drive9-for-daytona')
+  const cachedBinary = join(cacheDir, `drive9-linux-amd64-${releaseVersion}`)
+
+  // Download locally if not cached (sandbox outbound network may not reach CDN).
+  if (!existsSync(cachedBinary)) {
+    console.log(`[${name}] Downloading drive9 binary locally...`)
+    execSync(`mkdir -p '${cacheDir}' && curl -fsSL '${url}' -o '${cachedBinary}' && chmod +x '${cachedBinary}'`, {
+      stdio: 'inherit',
+    })
+  } else {
+    console.log(`[${name}] Using cached drive9 binary: ${cachedBinary}`)
+  }
+
+  // Upload into the sandbox via SDK.
+  const buf = readFileSync(cachedBinary)
+  const file = new File([buf], 'drive9', { type: 'application/octet-stream' })
+  await sandbox.fs.uploadFile('/usr/local/bin/drive9', file)
+  console.log(`[${name}] Uploaded drive9 binary to sandbox`)
+
+  await run(sandbox, name, 'install drive9', 'chmod +x /usr/local/bin/drive9 && drive9 --version')
 }
 
 export async function installFuse(sandbox: Sandbox, name: string) {
