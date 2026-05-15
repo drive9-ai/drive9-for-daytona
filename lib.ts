@@ -37,6 +37,7 @@ export async function createSandbox(
   const daytona = getDaytona()
   const sandbox = await daytona.create({
     language: 'typescript',
+    user: 'root',
     envVars: {
       DRIVE9_SERVER: drive9Server,
       DRIVE9_REMOTE: drive9Remote,
