@@ -22,13 +22,13 @@ git history, and project survive every destruction — because they live on
 
   Sandbox C (fork + break)
   │  git log → sees A + B commits (both dead)
-  │  drive9 ctx fork test-env (0.3s, copy-on-write)
+  │  drive9 ctx fork test-env (0.3s, instant)
   │  rm math.js on fork → broken
   │  switch back → original untouched
   ↓  destroyed
 
   Local macOS
-     drive9 mount ~/drive9 (WebDAV)
+     drive9 mount ~/drive9
      git log, node index.js → everything works
      open . → browse in Finder
 ```
@@ -41,10 +41,10 @@ drive9 adds the data layer:
 | Capability | Without drive9 | With drive9 |
 |---|---|---|
 | Data survives sandbox death | No | Yes |
-| Share data across sandboxes | Manual copy | Same FUSE mount |
-| git, node, grep just work | Local disk only | POSIX filesystem |
-| Safe experimentation | Snapshot entire sandbox | `ctx fork` (instant, data-level) |
-| Access from local machine | Not possible | WebDAV / FUSE mount |
+| Share data across sandboxes | Manual copy | Same `drive9 mount` |
+| git, node, grep just work | Local disk only | Real filesystem |
+| Safe experimentation | Snapshot entire sandbox | `ctx fork` (instant) |
+| Access from any machine | Not possible | `drive9 mount` anywhere |
 
 **Daytona manages compute. drive9 manages data.**
 

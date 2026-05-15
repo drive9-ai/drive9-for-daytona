@@ -193,11 +193,11 @@ EOF`,
     `cd ${shellQuote(projectDir)} && git log --oneline`,
   )
 
-  // Create a copy-on-write fork
+  // Create an instant fork
   await run(
     sandboxC,
     'sandbox-c',
-    'drive9 ctx fork (instant CoW)',
+    'drive9 ctx fork (instant)',
     `time drive9 ctx fork ${shellQuote(forkName)} --json`,
     60,
   )

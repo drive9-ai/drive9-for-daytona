@@ -116,11 +116,11 @@ async function sceneArchitecture(): Promise<void> {
     `${dim}     ↓ destroyed${reset}`,
     `${blue}  Sandbox C ${dim}(fork + break)${reset}   fork → rm file → original untouched`,
     `${dim}     ↓ destroyed${reset}`,
-    `${magenta}  Local macOS ${dim}(access)${reset}      mount via WebDAV, open in Finder`,
+    `${magenta}  Local macOS ${dim}(access)${reset}      drive9 mount, open in Finder`,
     ``,
     `${dim}  ┌──────────────────────────────────────────┐${reset}`,
     `${dim}  │  ${magenta}${bold}drive9${reset}${dim}: data layer that outlives compute   │${reset}`,
-    `${dim}  │  POSIX filesystem • git • copy-on-write   │${reset}`,
+    `${dim}  │  real filesystem • git • instant forks     │${reset}`,
     `${dim}  └──────────────────────────────────────────┘${reset}`,
   ]
 
@@ -138,7 +138,7 @@ async function sceneSandboxA(): Promise<void> {
   const prompt = sandboxPrompt('sandbox-a')
 
   await cmdPrompt(prompt, 'drive9 mount /workspace')
-  print(`  ${dim}Mounted at /workspace (FUSE)${reset}`)
+  print(`  ${dim}Mounted at /workspace${reset}`)
   await pause(300)
 
   await cmdPrompt(prompt, 'mkdir my-project && cd my-project')
@@ -175,7 +175,7 @@ async function sceneSandboxB(): Promise<void> {
   const prompt = sandboxPrompt('sandbox-b')
 
   await cmdPrompt(prompt, 'drive9 mount /workspace')
-  print(`  ${dim}Mounted at /workspace (FUSE)${reset}`)
+  print(`  ${dim}Mounted at /workspace${reset}`)
   await pause(300)
 
   await cmdPrompt(prompt, 'cd my-project && git log --oneline')
@@ -217,7 +217,7 @@ async function sceneSandboxC(): Promise<void> {
   const prompt = sandboxPrompt('sandbox-c')
 
   await cmdPrompt(prompt, 'drive9 mount /workspace')
-  print(`  ${dim}Mounted at /workspace (FUSE)${reset}`)
+  print(`  ${dim}Mounted at /workspace${reset}`)
   await pause(200)
 
   await cmdPrompt(prompt, 'cd my-project && git log --oneline')
@@ -226,12 +226,12 @@ async function sceneSandboxC(): Promise<void> {
   await pause(800)
 
   // Fork
-  print(`\n${white}${bold}  Creating a copy-on-write fork...${reset}`)
+  print(`\n${white}${bold}  Creating an instant fork...${reset}`)
   await pause(200)
 
   await cmdPrompt(prompt, 'drive9 ctx fork test-env')
   print(`  ${cyan}${bold}Context "test-env" created (fork of "default")${reset}`)
-  print(`  ${dim}0.3s elapsed — only metadata copied, zero data duplication${reset}`)
+  print(`  ${dim}0.3s — no data copied${reset}`)
   await pause(500)
 
   await cmdPrompt(prompt, 'drive9 ctx show')
@@ -246,7 +246,7 @@ async function sceneSandboxC(): Promise<void> {
   await pause(300)
 
   await cmdPrompt(prompt, 'drive9 mount /workspace-fork')
-  print(`  ${dim}Mounted fork at /workspace-fork (FUSE)${reset}`)
+  print(`  ${dim}Mounted fork at /workspace-fork${reset}`)
   await pause(300)
 
   // Verify fork has data
@@ -303,7 +303,7 @@ async function sceneLocalMac(): Promise<void> {
   const prompt = sandboxPrompt('local')
 
   await cmdPrompt(prompt, 'drive9 mount ~/drive9')
-  print(`  ${dim}Mounted via WebDAV (macOS native, no FUSE needed)${reset}`)
+  print(`  ${dim}Mounted at ~/drive9${reset}`)
   await pause(300)
 
   await cmdPrompt(prompt, 'cd ~/drive9/my-project && git log --oneline')
@@ -334,7 +334,7 @@ async function sceneOutro(): Promise<void> {
   print(`  ${dim}1.${reset} ${yellow}Sandbox A${reset}: bootstrapped project, first commit`)
   print(`  ${dim}2.${reset} ${green}Sandbox B${reset}: continued development, second commit`)
   print(`  ${dim}3.${reset} ${blue}Sandbox C${reset}: forked, broke the fork, original untouched`)
-  print(`  ${dim}4.${reset} ${magenta}Local macOS${reset}: mounted via WebDAV, everything accessible`)
+  print(`  ${dim}4.${reset} ${magenta}Local macOS${reset}: drive9 mount, full access from your laptop`)
   print('')
   print(`  ${dim}Daytona manages compute. drive9 manages data.${reset}`)
   print(`  ${dim}Together: the complete runtime for AI agents.${reset}`)
