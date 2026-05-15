@@ -1,0 +1,32 @@
+{
+  "name": "drive9-for-daytona",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Daytona sandbox demo for drive9: AI code generation with isolated testing via FUSE-mounted shared workspaces and copy-on-write forks.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "tsx test.ts",
+    "demo": "tsx demo.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "drive9",
+    "daytona",
+    "fuse",
+    "sandbox",
+    "workspace",
+    "ai-agent",
+    "fork",
+    "copy-on-write"
+  ],
+  "dependencies": {
+    "@daytonaio/sdk": "^0.12.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
