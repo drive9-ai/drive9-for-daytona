@@ -1,4 +1,4 @@
-import { Daytona, type Sandbox } from '@daytonaio/sdk'
+import { Daytona, Image, type Sandbox } from '@daytonaio/sdk'
 
 export const drive9Server = process.env.DRIVE9_SERVER || 'https://api.drive9.ai'
 export const drive9Remote = process.env.DRIVE9_REMOTE || ':/daytona-demo'
@@ -6,9 +6,19 @@ export const drive9ApiKey = process.env.DRIVE9_API_KEY || ''
 export const mountpoint = '/home/daytona/workspace'
 const daytonaTarget = process.env.DAYTONA_TARGET || ''
 
-// Custom sandbox image with drive9, fuse3, and git pre-installed.
-const sandboxImage =
-  process.env.DAYTONA_IMAGE || 'ghcr.io/drive9-ai/drive9-for-daytona/sandbox:latest'
+const drive9ReleaseUrl =
+  process.env.DRIVE9_RELEASE_URL ||
+  'https://raw.githubusercontent.com/mem9-ai/drive9-fe/main/site/releases/drive9-linux-amd64'
+
+// Declarative sandbox image: drive9 + fuse3 + git pre-installed.
+// Built by Daytona on first use, then cached as a snapshot.
+const sandboxImage = Image.base('ubuntu:22.04').runCommands(
+  'apt-get update -qq && ' +
+    'apt-get install -y -qq --no-install-recommends fuse3 git curl ca-certificates nodejs npm > /dev/null 2>&1 && ' +
+    'rm -rf /var/lib/apt/lists/* && ' +
+    'printf "user_allow_other\\n" > /etc/fuse.conf',
+  `curl -fsSL '${drive9ReleaseUrl}' -o /usr/local/bin/drive9 && chmod +x /usr/local/bin/drive9`,
+)
 
 export function requireDrive9Credential() {
   if (!drive9ApiKey) {
@@ -23,9 +33,9 @@ export function shellQuote(value: string): string {
 let daytonaClient: Daytona | null = null
 
 function getDaytona(): Daytona {
+  const opts: Record<string, string> = {}
+  if (daytonaTarget) opts.target = daytonaTarget
   if (!daytonaClient) {
-    const opts: Record<string, string> = {}
-    if (daytonaTarget) opts.target = daytonaTarget
     daytonaClient = new Daytona(opts)
   }
   return daytonaClient
@@ -36,19 +46,23 @@ export async function createSandbox(
   extraEnvs?: Record<string, string>,
 ): Promise<Sandbox> {
   const daytona = getDaytona()
-  const sandbox = await daytona.create({
-    image: sandboxImage,
-    language: 'typescript',
-    user: 'root',
-    envVars: {
-      DRIVE9_SERVER: drive9Server,
-      DRIVE9_REMOTE: drive9Remote,
-      DRIVE9_API_KEY: drive9ApiKey,
-      DRIVE9_MOUNTPOINT: mountpoint,
-      ...extraEnvs,
+  console.log(`[${name}] Creating sandbox...`)
+  const sandbox = await daytona.create(
+    {
+      image: sandboxImage,
+      language: 'typescript',
+      user: 'root',
+      envVars: {
+        DRIVE9_SERVER: drive9Server,
+        DRIVE9_REMOTE: drive9Remote,
+        DRIVE9_API_KEY: drive9ApiKey,
+        DRIVE9_MOUNTPOINT: mountpoint,
+        ...extraEnvs,
+      },
+      resources: { cpu: 2, memory: 4, disk: 10 },
     },
-    resources: { cpu: 2, memory: 4, disk: 10 },
-  })
+    { onSnapshotCreateLogs: (chunk: string) => process.stdout.write(chunk) },
+  )
   console.log(`[${name}] Sandbox created: ${sandbox.id}`)
   return sandbox
 }
@@ -61,7 +75,7 @@ export async function run(
   timeoutSec = 120,
 ) {
   console.log(`\n== ${name}: ${label} ==`)
-  const result = await sandbox.process.executeCommand(cmd, undefined, timeoutSec)
+  const result = await sandbox.process.executeCommand(cmd, undefined, undefined, timeoutSec)
   if (result.exitCode !== 0) {
     console.error(`stdout: ${result.result}`)
     throw new Error(`${name}: ${label} failed with exit ${result.exitCode}`)
@@ -80,8 +94,7 @@ export async function installFuse(sandbox: Sandbox, name: string) {
     sandbox,
     name,
     'verify fuse3 + git',
-    'fusermount3 --version && git --version && ' +
-      '(grep -q user_allow_other /etc/fuse.conf || printf "user_allow_other\\n" >> /etc/fuse.conf)',
+    'fusermount3 --version && git --version',
   )
 }
 
@@ -146,7 +159,7 @@ export async function runAllowFail(
   timeoutSec = 120,
 ) {
   console.log(`\n== ${name}: ${label} ==`)
-  const result = await sandbox.process.executeCommand(cmd, undefined, timeoutSec)
+  const result = await sandbox.process.executeCommand(cmd, undefined, undefined, timeoutSec)
   if (result.result) console.log(result.result)
   if (result.exitCode !== 0) {
     console.log(`[${name}] ${label} exited with code ${result.exitCode} (expected)`)
