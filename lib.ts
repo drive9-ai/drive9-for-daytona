@@ -6,9 +6,9 @@ export const drive9ApiKey = process.env.DRIVE9_API_KEY || ''
 export const mountpoint = '/home/daytona/workspace'
 const daytonaTarget = process.env.DAYTONA_TARGET || ''
 
-const releaseBaseUrl =
-  process.env.DRIVE9_RELEASE_BASE_URL ||
-  'https://raw.githubusercontent.com/mem9-ai/drive9-fe/main/site/releases'
+// Custom sandbox image with drive9, fuse3, and git pre-installed.
+const sandboxImage =
+  process.env.DAYTONA_IMAGE || 'ghcr.io/drive9-ai/drive9-for-daytona/sandbox:latest'
 
 export function requireDrive9Credential() {
   if (!drive9ApiKey) {
@@ -37,7 +37,7 @@ export async function createSandbox(
 ): Promise<Sandbox> {
   const daytona = getDaytona()
   const sandbox = await daytona.create({
-    image: process.env.DAYTONA_IMAGE || undefined,
+    image: sandboxImage,
     language: 'typescript',
     user: 'root',
     envVars: {
@@ -70,33 +70,18 @@ export async function run(
   return result
 }
 
+// Verify pre-installed tools in the custom sandbox image.
 export async function installDrive9(sandbox: Sandbox, name: string) {
-  const url = `${releaseBaseUrl}/drive9-linux-amd64`
-  await run(
-    sandbox,
-    name,
-    'install drive9',
-    // Use wget as fallback — curl exit 23 can occur in constrained sandbox environments.
-    `(curl -fsSL --retry 3 --connect-timeout 15 '${url}' -o /tmp/drive9 2>/dev/null || ` +
-      `wget -q -O /tmp/drive9 '${url}') && ` +
-      `install -m 755 /tmp/drive9 /usr/local/bin/drive9 && ` +
-      `rm -f /tmp/drive9 && ` +
-      `drive9 --version`,
-  )
+  await run(sandbox, name, 'verify drive9', 'drive9 --version')
 }
 
 export async function installFuse(sandbox: Sandbox, name: string) {
-  // Try sudo first (Daytona sandboxes may restrict direct root fs access),
-  // fall back to non-sudo if sudo is not available.
   await run(
     sandbox,
     name,
-    'install fuse3',
-    '(sudo apt-get update -qq 2>/dev/null || apt-get update -qq) && ' +
-      '(sudo apt-get install -y -qq fuse3 git 2>/dev/null || apt-get install -y -qq fuse3 git) > /dev/null 2>&1 && ' +
-      '(sudo sh -c \'printf "user_allow_other\\n" > /etc/fuse.conf\' 2>/dev/null || printf "user_allow_other\\n" > /etc/fuse.conf) && ' +
-      '(sudo chmod 0666 /dev/fuse 2>/dev/null || true) && ' +
-      'fusermount3 --version',
+    'verify fuse3 + git',
+    'fusermount3 --version && git --version && ' +
+      '(grep -q user_allow_other /etc/fuse.conf || printf "user_allow_other\\n" >> /etc/fuse.conf)',
   )
 }
 
