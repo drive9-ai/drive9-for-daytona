@@ -1,5 +1,4 @@
 import { Daytona, type Sandbox } from '@daytonaio/sdk'
-import { execSync } from 'node:child_process'
 
 export const drive9Server = process.env.DRIVE9_SERVER || 'https://api.drive9.ai'
 export const drive9Remote = process.env.DRIVE9_REMOTE || ':/daytona-demo'
@@ -73,17 +72,17 @@ export async function run(
 
 export async function installDrive9(sandbox: Sandbox, name: string) {
   const url = `${releaseBaseUrl}/drive9-linux-amd64`
-
-  // Fetch the binary from GitHub releases and upload via Daytona SDK.
-  // Sandbox curl can fail on large binary writes (exit 23); the SDK upload
-  // path is more reliable.
-  console.log(`[${name}] Fetching drive9 binary from ${url}`)
-  const buf = execSync(`curl -fsSL '${url}'`, { maxBuffer: 50 * 1024 * 1024 })
-  const file = new File([buf], 'drive9', { type: 'application/octet-stream' })
-  await sandbox.fs.uploadFile('/usr/local/bin/drive9', file)
-  console.log(`[${name}] Uploaded drive9 binary (${(buf.length / 1024 / 1024).toFixed(1)} MB)`)
-
-  await run(sandbox, name, 'install drive9', 'chmod +x /usr/local/bin/drive9 && drive9 --version')
+  await run(
+    sandbox,
+    name,
+    'install drive9',
+    // Use wget as fallback — curl exit 23 can occur in constrained sandbox environments.
+    `(curl -fsSL --retry 3 --connect-timeout 15 '${url}' -o /tmp/drive9 2>/dev/null || ` +
+      `wget -q -O /tmp/drive9 '${url}') && ` +
+      `install -m 755 /tmp/drive9 /usr/local/bin/drive9 && ` +
+      `rm -f /tmp/drive9 && ` +
+      `drive9 --version`,
+  )
 }
 
 export async function installFuse(sandbox: Sandbox, name: string) {
