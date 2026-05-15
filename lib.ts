@@ -1,7 +1,4 @@
 import { Daytona, type Sandbox } from '@daytonaio/sdk'
-import { existsSync, readFileSync } from 'node:fs'
-import { execSync } from 'node:child_process'
-import { join } from 'node:path'
 
 export const drive9Server = process.env.DRIVE9_SERVER || 'https://api.drive9.ai'
 export const drive9Remote = process.env.DRIVE9_REMOTE || ':/daytona-demo'
@@ -9,8 +6,9 @@ export const drive9ApiKey = process.env.DRIVE9_API_KEY || ''
 export const mountpoint = '/home/daytona/workspace'
 const daytonaTarget = process.env.DAYTONA_TARGET || ''
 
-const releaseBaseUrl = process.env.DRIVE9_RELEASE_BASE_URL || 'https://drive9.ai/releases'
-const releaseVersion = process.env.DRIVE9_RELEASE_VERSION || 'latest'
+const releaseBaseUrl =
+  process.env.DRIVE9_RELEASE_BASE_URL ||
+  'https://raw.githubusercontent.com/mem9-ai/drive9-fe/main/site/releases'
 
 export function requireDrive9Credential() {
   if (!drive9ApiKey) {
@@ -73,27 +71,15 @@ export async function run(
 }
 
 export async function installDrive9(sandbox: Sandbox, name: string) {
-  const url = `${releaseBaseUrl}/drive9-linux-amd64?v=${releaseVersion}`
-  const cacheDir = join(process.env.HOME || '/tmp', '.cache', 'drive9-for-daytona')
-  const cachedBinary = join(cacheDir, `drive9-linux-amd64-${releaseVersion}`)
-
-  // Download locally if not cached (sandbox outbound network may not reach CDN).
-  if (!existsSync(cachedBinary)) {
-    console.log(`[${name}] Downloading drive9 binary locally...`)
-    execSync(`mkdir -p '${cacheDir}' && curl -fsSL '${url}' -o '${cachedBinary}' && chmod +x '${cachedBinary}'`, {
-      stdio: 'inherit',
-    })
-  } else {
-    console.log(`[${name}] Using cached drive9 binary: ${cachedBinary}`)
-  }
-
-  // Upload into the sandbox via SDK.
-  const buf = readFileSync(cachedBinary)
-  const file = new File([buf], 'drive9', { type: 'application/octet-stream' })
-  await sandbox.fs.uploadFile('/usr/local/bin/drive9', file)
-  console.log(`[${name}] Uploaded drive9 binary to sandbox`)
-
-  await run(sandbox, name, 'install drive9', 'chmod +x /usr/local/bin/drive9 && drive9 --version')
+  const url = `${releaseBaseUrl}/drive9-linux-amd64`
+  await run(
+    sandbox,
+    name,
+    'install drive9',
+    `curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 15 '${url}' -o /usr/local/bin/drive9 && ` +
+      `chmod +x /usr/local/bin/drive9 && ` +
+      `drive9 --version`,
+  )
 }
 
 export async function installFuse(sandbox: Sandbox, name: string) {
