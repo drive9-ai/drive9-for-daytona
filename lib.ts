@@ -36,6 +36,7 @@ export async function createSandbox(
 ): Promise<Sandbox> {
   const daytona = getDaytona()
   const sandbox = await daytona.create({
+    image: process.env.DAYTONA_IMAGE || undefined,
     language: 'typescript',
     user: 'root',
     envVars: {
@@ -80,12 +81,16 @@ export async function installDrive9(sandbox: Sandbox, name: string) {
 }
 
 export async function installFuse(sandbox: Sandbox, name: string) {
+  // Try sudo first (Daytona sandboxes may restrict direct root fs access),
+  // fall back to non-sudo if sudo is not available.
   await run(
     sandbox,
     name,
     'install fuse3',
-    'apt-get update -qq && apt-get install -y -qq fuse3 > /dev/null 2>&1 && ' +
-      'printf "user_allow_other\\n" > /etc/fuse.conf && ' +
+    '(sudo apt-get update -qq 2>/dev/null || apt-get update -qq) && ' +
+      '(sudo apt-get install -y -qq fuse3 git 2>/dev/null || apt-get install -y -qq fuse3 git) > /dev/null 2>&1 && ' +
+      '(sudo sh -c \'printf "user_allow_other\\n" > /etc/fuse.conf\' 2>/dev/null || printf "user_allow_other\\n" > /etc/fuse.conf) && ' +
+      '(sudo chmod 0666 /dev/fuse 2>/dev/null || true) && ' +
       'fusermount3 --version',
   )
 }
