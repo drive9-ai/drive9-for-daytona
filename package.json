@@ -8,7 +8,9 @@
   "scripts": {
     "test": "tsx test.ts",
     "demo": "tsx demo.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "animate": "tsx animate.ts",
+    "animate:fast": "tsx animate.ts --fast"
   },
   "keywords": [
     "drive9",
