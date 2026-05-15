@@ -64,7 +64,6 @@ npm run animate    # terminal animation (no API keys needed)
 
 | File | Purpose |
 |---|---|
-| `Dockerfile` | Custom sandbox image: drive9 + fuse3 + git pre-installed |
 | `lib.ts` | Shared helpers: createSandbox, mountDrive9, run |
 | `demo.ts` | 3-sandbox demo: bootstrap → continue → fork/break |
 | `test.ts` | Mount + read/write smoke test |
