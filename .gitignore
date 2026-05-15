@@ -4,3 +4,6 @@ dist/
 *.js
 *.d.ts
 *.map
+demo-animation.cast
+demo-animation.gif
+package-lock.json

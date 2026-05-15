@@ -55,7 +55,7 @@ export async function run(
   timeoutSec = 120,
 ) {
   console.log(`\n== ${name}: ${label} ==`)
-  const result = await sandbox.process.executeCommand(cmd, undefined, undefined, timeoutSec)
+  const result = await sandbox.process.executeCommand(cmd, undefined, timeoutSec)
   if (result.exitCode !== 0) {
     console.error(`stdout: ${result.result}`)
     throw new Error(`${name}: ${label} failed with exit ${result.exitCode}`)
@@ -102,53 +102,73 @@ export async function ensureRemoteDir(sandbox: Sandbox, name: string, remote: st
   }
 }
 
-export async function mountDrive9(sandbox: Sandbox, name: string, remote?: string) {
+export async function mountDrive9(sandbox: Sandbox, name: string, remote?: string, path?: string) {
   const targetRemote = remote ?? drive9Remote
+  const targetPath = path ?? mountpoint
   await ensureRemoteDir(sandbox, name, targetRemote)
 
+  const logFile = `/tmp/drive9-mount-${targetPath.replace(/\//g, '_')}.log`
   await run(
     sandbox,
     name,
-    'mount drive9',
-    `mkdir -p ${shellQuote(mountpoint)} && ` +
+    `mount drive9 at ${targetPath}`,
+    `mkdir -p ${shellQuote(targetPath)} && ` +
       `chmod 0666 /dev/fuse 2>/dev/null || true && ` +
       `nohup drive9 mount ` +
       `-server ${shellQuote(drive9Server)} ` +
       `-cache-dir /tmp/drive9-cache ` +
       `-allow-other ` +
       `-sync-mode interactive ` +
-      `${shellQuote(targetRemote)} ${shellQuote(mountpoint)} ` +
-      `> /tmp/drive9-mount.log 2>&1 &`,
+      `${shellQuote(targetRemote)} ${shellQuote(targetPath)} ` +
+      `> ${shellQuote(logFile)} 2>&1 &`,
   )
 
   await run(
     sandbox,
     name,
-    'wait for mount',
+    `wait for mount at ${targetPath}`,
     `for i in $(seq 1 60); do
-       mountpoint -q ${shellQuote(mountpoint)} && exit 0
+       mountpoint -q ${shellQuote(targetPath)} && exit 0
        sleep 0.5
      done
      echo 'mount timeout' >&2
-     cat /tmp/drive9-mount.log >&2 2>/dev/null || true
+     cat ${shellQuote(logFile)} >&2 2>/dev/null || true
      exit 1`,
     90,
   )
 }
 
-export async function unmountDrive9(sandbox: Sandbox, name: string) {
+// Like run() but does not throw on non-zero exit — returns the result for inspection.
+export async function runAllowFail(
+  sandbox: Sandbox,
+  name: string,
+  label: string,
+  cmd: string,
+  timeoutSec = 120,
+) {
+  console.log(`\n== ${name}: ${label} ==`)
+  const result = await sandbox.process.executeCommand(cmd, undefined, timeoutSec)
+  if (result.result) console.log(result.result)
+  if (result.exitCode !== 0) {
+    console.log(`[${name}] ${label} exited with code ${result.exitCode} (expected)`)
+  }
+  return result
+}
+
+export async function unmountDrive9(sandbox: Sandbox, name: string, path?: string) {
+  const targetPath = path ?? mountpoint
   await run(
     sandbox,
     name,
-    'unmount drive9',
-    `drive9 umount --timeout 30s ${shellQuote(mountpoint)}`,
+    `unmount drive9 at ${targetPath}`,
+    `drive9 umount --timeout 30s ${shellQuote(targetPath)}`,
   )
 }
 
 export async function killSandbox(sandbox: Sandbox | undefined, name: string) {
   if (!sandbox) return
   try {
-    await sandbox.delete(30)
+    await sandbox.delete()
     console.log(`[${name}] Sandbox deleted.`)
   } catch (err) {
     console.error(`[${name}] Failed to delete sandbox:`, err)
