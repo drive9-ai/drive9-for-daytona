@@ -4,6 +4,7 @@ export const drive9Server = process.env.DRIVE9_SERVER || 'https://api.drive9.ai'
 export const drive9Remote = process.env.DRIVE9_REMOTE || ':/daytona-demo'
 export const drive9ApiKey = process.env.DRIVE9_API_KEY || ''
 export const mountpoint = '/home/daytona/workspace'
+const daytonaTarget = process.env.DAYTONA_TARGET || ''
 
 const releaseBaseUrl = process.env.DRIVE9_RELEASE_BASE_URL || 'https://drive9.ai/releases'
 const releaseVersion = process.env.DRIVE9_RELEASE_VERSION || 'latest'
@@ -22,7 +23,9 @@ let daytonaClient: Daytona | null = null
 
 function getDaytona(): Daytona {
   if (!daytonaClient) {
-    daytonaClient = new Daytona()
+    const opts: Record<string, string> = {}
+    if (daytonaTarget) opts.target = daytonaTarget
+    daytonaClient = new Daytona(opts)
   }
   return daytonaClient
 }
