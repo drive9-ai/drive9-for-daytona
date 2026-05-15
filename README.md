@@ -2,7 +2,7 @@
 
 > **Sandboxes are temporary. Your code is not.**
 
-Three [Daytona](https://daytona.io) sandboxes are created and destroyed, one after another. The code, git history, and project survive every destruction — because they live on [drive9](https://drive9.ai), a persistent filesystem designed for AI agent workflows.
+Three [Daytona](https://daytona.io) sandboxes are created and destroyed, one after another. The code, git history, and project survive every destruction — because they live on [drive9](https://drive9.ai), a persistent cloud filesystem.
 
 ```
   Sandbox A                Sandbox B                Sandbox C
@@ -30,10 +30,9 @@ This is the core of the demo — three sandboxes, each building on the last, and
 
 | | Daytona alone | Daytona + drive9 |
 |---|---|---|
-| **Data survives sandbox death** | Only with external volumes | Built-in — just `drive9 mount` |
-| **Continue work in a new sandbox** | Re-clone or restore from snapshot | Mount and go — full history is there |
+| **Data survives sandbox death** | Re-clone or restore from snapshot | `drive9 mount` — zero-config, full history |
 | **Safe experimentation** | Destroy and recreate sandbox | `ctx fork` — instant, isolated, reversible |
-| **git, node, grep** | Work on local sandbox disk | Work on persistent mount (real filesystem) |
+| **git, node, grep** | Work on local sandbox disk | Work on persistent mount (real POSIX filesystem) |
 
 ## The demo
 
@@ -117,80 +116,43 @@ multiply(3, 4) = 12
 
 ## Quick start
 
+> **Important:** The demo requires Daytona **Tier 3+** or a self-hosted instance. Tier 1/2 sandboxes block outbound HTTPS to `api.drive9.ai`. We've submitted a [whitelist request](https://github.com/daytonaio/sandbox-network-whitelist/pull/103) to enable all tiers.
+
 ```bash
 git clone https://github.com/drive9-ai/drive9-for-daytona.git
 cd drive9-for-daytona
 
 cp .env.example .env
-# Edit .env — see below for required values
+# Fill in your API keys:
+#   DAYTONA_API_KEY=dtn_...       from https://app.daytona.io
+#   DRIVE9_API_KEY=dat9_...       run: drive9 ctx show --reveal
 
 npm install
-npm run test       # smoke test: mount + read/write
 npm run demo       # full 3-sandbox demo
 ```
 
-### Environment variables
-
-```bash
-DAYTONA_API_KEY=dtn_...          # from https://app.daytona.io
-DRIVE9_API_KEY=dat9_...          # run: drive9 ctx show --reveal
-```
-
-> **Note:** Daytona sandboxes on Tier 1/2 have restricted outbound network access. The demo requires Tier 3+ or a self-hosted Daytona instance so that the sandbox can reach `api.drive9.ai` at runtime. We've submitted a [whitelist request](https://github.com/daytonaio/sandbox-network-whitelist/pull/103) to make drive9 available on all tiers.
-
-### Cleanup
-
-Sandboxes are automatically cleaned up on success or failure (the demo uses a `finally` block). If the script is interrupted, check your [Daytona dashboard](https://app.daytona.io) for orphaned sandboxes.
-
 ## How it works
 
-The sandbox image is built declaratively through Daytona's SDK — no Dockerfile or container registry needed:
-
-```typescript
-import { Daytona, Image } from '@daytonaio/sdk'
-
-const image = Image.base('ubuntu:22.04').runCommands(
-  'apt-get update && apt-get install -y fuse3 git curl nodejs npm ...',
-  'curl -fsSL <drive9-release-url> -o /usr/local/bin/drive9 && chmod +x ...',
-)
-
-const sandbox = await daytona.create({
-  image,
-  envVars: { DRIVE9_API_KEY: '...' },
-})
-```
-
-Inside the sandbox, drive9 provides a standard POSIX filesystem:
+Inside each sandbox, drive9 provides a standard POSIX mount:
 
 ```bash
-drive9 mount /workspace          # mount persistent workspace
-cd /workspace/my-project
-git log                          # full history from previous sandboxes
-node index.js                    # code runs
-
-drive9 ctx fork test-env         # instant isolated fork
-drive9 ctx use test-env          # switch to fork
-rm important-file.js             # break things safely
-drive9 ctx use default           # switch back — original untouched
+drive9 mount /workspace            # mount persistent workspace
+cd /workspace && git log            # full history from previous sandboxes
+drive9 ctx fork test-env            # instant isolated fork
+drive9 ctx use default              # switch back — original untouched
 ```
 
-## Files
-
-| File | Purpose |
-|---|---|
-| `lib.ts` | Shared helpers — sandbox lifecycle, drive9 mount, command execution |
-| `demo.ts` | Full 3-sandbox demo: bootstrap → continue → fork/break |
-| `test.ts` | Smoke test: mount + read/write round-trip |
+The sandbox image is built declaratively through Daytona's SDK — no Dockerfile needed. See [`lib.ts`](lib.ts) for implementation details.
 
 ## Prerequisites
 
 - Node.js 20+
-- [Daytona API key](https://app.daytona.io) (Tier 3+ for network access)
+- [Daytona API key](https://app.daytona.io) — **Tier 3+ required** for network access
 - [drive9 API key](https://drive9.ai) — or run `drive9 ctx show --reveal`
 
 ## Links
 
-- [drive9](https://drive9.ai) — persistent filesystem for AI agents
+- [drive9](https://drive9.ai) — persistent cloud filesystem
 - [Daytona](https://daytona.io) — secure infrastructure for running AI-generated code
 - [Whitelist PR](https://github.com/daytonaio/sandbox-network-whitelist/pull/103) — requesting drive9 access on all Daytona tiers
 
