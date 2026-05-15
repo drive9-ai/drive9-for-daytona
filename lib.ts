@@ -70,11 +70,16 @@ export async function run(
 }
 
 export async function installDrive9(sandbox: Sandbox, name: string) {
+  const url = `${releaseBaseUrl}/drive9-linux-amd64?v=${releaseVersion}`
   await run(
     sandbox,
     name,
     'install drive9',
-    `curl -fsSL '${releaseBaseUrl}/drive9-linux-amd64?v=${releaseVersion}' -o /usr/local/bin/drive9 && ` +
+    // Retry up to 3 times with backoff — sandbox network can be flaky on first boot.
+    `for attempt in 1 2 3; do ` +
+      `curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 '${url}' -o /usr/local/bin/drive9 && break; ` +
+      `echo "Attempt $attempt failed, retrying..."; sleep 2; ` +
+      `done && ` +
       `chmod +x /usr/local/bin/drive9 && ` +
       `drive9 --version`,
   )
