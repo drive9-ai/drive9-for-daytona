@@ -127,20 +127,13 @@ cp .env.example .env
 npm install
 npm run test       # smoke test: mount + read/write
 npm run demo       # full 3-sandbox demo
-npm run animate    # terminal animation (no API keys needed)
 ```
 
 ### Environment variables
 
 ```bash
-# Required
 DAYTONA_API_KEY=dtn_...          # from https://app.daytona.io
-DRIVE9_API_KEY=dat9_...          # from https://drive9.ai
-
-# Optional (have sensible defaults)
-DRIVE9_SERVER=https://api.drive9.ai
-DRIVE9_REMOTE=:/daytona-demo     # remote path for the workspace
-# DAYTONA_TARGET=us              # region override (us, eu, asia)
+DRIVE9_API_KEY=dat9_...          # run: drive9 ctx show --reveal
 ```
 
 > **Note:** Daytona sandboxes on Tier 1/2 have restricted outbound network access. The demo requires Tier 3+ or a self-hosted Daytona instance so that the sandbox can reach `api.drive9.ai` at runtime. We've submitted a [whitelist request](https://github.com/daytonaio/sandbox-network-whitelist/pull/103) to make drive9 available on all tiers.
@@ -188,13 +181,12 @@ drive9 ctx use default           # switch back — original untouched
 | `lib.ts` | Shared helpers — sandbox lifecycle, drive9 mount, command execution |
 | `demo.ts` | Full 3-sandbox demo: bootstrap → continue → fork/break |
 | `test.ts` | Smoke test: mount + read/write round-trip |
-| `animate.ts` | Terminal animation of the demo flow (no API keys needed) |
 
 ## Prerequisites
 
 - Node.js 20+
 - [Daytona API key](https://app.daytona.io) (Tier 3+ for network access)
-- [drive9 API key](https://drive9.ai)
+- [drive9 API key](https://drive9.ai) — or run `drive9 ctx show --reveal`
 
 ## Links
 
